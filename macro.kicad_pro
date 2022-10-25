@@ -399,7 +399,8 @@
         "name": "Power",
         "nets": [
           "+5V",
-          "GND"
+          "GND",
+          "VBUS"
         ],
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
