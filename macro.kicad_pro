@@ -398,7 +398,6 @@
         "microvia_drill": 0.1,
         "name": "Power",
         "nets": [
-          "+5V",
           "GND",
           "VBUS"
         ],
