@@ -33,9 +33,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 2.6,
-          "height": 3.2,
-          "width": 3.2
+          "drill": 0.0,
+          "height": 0.62,
+          "width": 0.56
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -382,8 +382,8 @@
         "nets": [
           "+1V1",
           "+3.3V",
+          "+5V",
           "GND",
-          "Net-(C1-Pad1)",
           "Net-(D1-Pad2)",
           "Net-(R1-Pad1)",
           "Net-(R2-Pad1)",
