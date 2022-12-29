@@ -365,8 +365,8 @@
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.18,
-        "via_diameter": 0.508,
-        "via_drill": 0.254,
+        "via_diameter": 0.56,
+        "via_drill": 0.3,
         "wire_width": 6.0
       },
       {
@@ -383,13 +383,17 @@
           "+1V1",
           "+3.3V",
           "GND",
+          "Net-(C1-Pad1)",
+          "Net-(D1-Pad2)",
+          "Net-(R1-Pad1)",
+          "Net-(R2-Pad1)",
           "VBUS"
         ],
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.3,
-        "via_diameter": 0.508,
-        "via_drill": 0.254,
+        "via_diameter": 0.56,
+        "via_drill": 0.3,
         "wire_width": 6.0
       },
       {
@@ -397,7 +401,7 @@
         "clearance": 0.22,
         "diff_pair_gap": 0.1524,
         "diff_pair_via_gap": 0.25,
-        "diff_pair_width": 0.77,
+        "diff_pair_width": 0.1524,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
@@ -408,9 +412,9 @@
         ],
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
-        "track_width": 0.18,
-        "via_diameter": 0.508,
-        "via_drill": 0.254,
+        "track_width": 0.1524,
+        "via_diameter": 0.56,
+        "via_drill": 0.3,
         "wire_width": 6.0
       }
     ],
