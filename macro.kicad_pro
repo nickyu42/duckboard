@@ -34,8 +34,8 @@
         "other_text_upright": false,
         "pads": {
           "drill": 0.0,
-          "height": 0.62,
-          "width": 0.56
+          "height": 0.55,
+          "width": 1.7
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -384,9 +384,6 @@
           "+3.3V",
           "+5V",
           "GND",
-          "Net-(D1-Pad2)",
-          "Net-(R1-Pad1)",
-          "Net-(R2-Pad1)",
           "VBUS"
         ],
         "pcb_color": "rgba(0, 0, 0, 0.000)",
