@@ -72,12 +72,12 @@
       (plotframeref false)
       (viasonmask false)
       (mode 1)
-      (useauxorigin false)
+      (useauxorigin true)
       (hpglpennumber 1)
       (hpglpenspeed 20)
       (hpglpendiameter 15.000000)
       (dxfpolygonmode true)
-      (dxfimperialunits true)
+      (dxfimperialunits false)
       (dxfusepcbnewfont true)
       (psnegative false)
       (psa4output false)
@@ -86,7 +86,7 @@
       (plotinvisibletext false)
       (sketchpadsonfab false)
       (subtractmaskfromsilk false)
-      (outputformat 1)
+      (outputformat 3)
       (mirror false)
       (drillshape 0)
       (scaleselection 1)
@@ -204,6 +204,11 @@
       (net 5 "Net-(D3-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp 23708b85-adf5-4cbf-a4c4-69f9be2b941b))
     (pad "2" thru_hole circle locked (at 2.54 -5.08) (size 2.25 2.25) (drill 1.47) (layers *.Cu "B.Mask")
       (net 5 "Net-(D3-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp 2eb128af-cf78-4727-9276-c766eac2782b))
+    (model "${KIPRJMOD}/3D/Kailh Polia.step"
+      (offset (xyz 0 0 4.8))
+      (scale (xyz 1 1 1))
+      (rotate (xyz 0 0 -90))
+    )
   )
 
   (footprint "Rotary_Encoder:RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm_CircularMountingHoles" (layer "F.Cu")
@@ -335,6 +340,11 @@
       (net 6 "Net-(D4-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp 537d030b-54bb-4562-9f1e-378ccefb4b2e))
     (pad "2" thru_hole circle locked (at 2.54 -5.08) (size 2.25 2.25) (drill 1.47) (layers *.Cu "B.Mask")
       (net 6 "Net-(D4-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp b7ea6100-ff11-4609-86f6-89b95a0d171e))
+    (model "${KIPRJMOD}/3D/Kailh Polia.step"
+      (offset (xyz 0 0 4.8))
+      (scale (xyz 1 1 1))
+      (rotate (xyz 0 0 -90))
+    )
   )
 
   (footprint "MountingHole:MountingHole_2.2mm_M2" (layer "F.Cu")
@@ -579,6 +589,11 @@
       (net 22 "Net-(D5-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp 3019cd7d-d905-4256-ac07-1e58a26f3c06))
     (pad "2" thru_hole circle locked (at 2.54 -5.08) (size 2.25 2.25) (drill 1.47) (layers *.Cu "B.Mask")
       (net 22 "Net-(D5-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp 654b3b97-d6ef-4fab-aedc-733bab6d7f72))
+    (model "${KIPRJMOD}/3D/Kailh Polia.step"
+      (offset (xyz 0 0 4.8))
+      (scale (xyz 1 1 1))
+      (rotate (xyz 0 0 -90))
+    )
   )
 
   (footprint "MX_Alps_Hybrid:MX-1U-NoLED" (layer "F.Cu")
@@ -620,7 +635,7 @@
       (net 4 "Net-(D2-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp 63c4f6ba-7934-4f34-b900-9d85f4b16ec3))
     (pad "2" thru_hole circle locked (at 2.54 -5.08) (size 2.25 2.25) (drill 1.47) (layers *.Cu "B.Mask")
       (net 4 "Net-(D2-Pad2)") (pinfunction "ROW") (pintype "passive") (tstamp a3acb1a5-1a94-45cb-a7eb-6abc9d5b9709))
-    (model "${KIPRJMOD}/3D/Kailh Polia.step" hide
+    (model "${KIPRJMOD}/3D/Kailh Polia.step"
       (offset (xyz 0 0 4.8))
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 -90))
@@ -3567,6 +3582,7 @@
     (format (units 3) (units_format 1) (precision 4))
     (style (thickness 0.15) (arrow_length 1.27) (text_position_mode 0) (extension_height 0.58642) (extension_offset 0.5) keep_text_aligned)
   )
+  (target plus (at 105 77.5) (size 5) (width 0.1) (layer "Edge.Cuts") (tstamp b9fb1e52-5bfb-4074-afb5-c49d4199f8ba))
 
   (segment (start 141.71 91.12) (end 138.02 91.12) (width 0.3) (layer "F.Cu") (net 1) (tstamp 051ba6e7-cd8e-4540-a963-749311d61179))
   (segment (start 149.66 98.89) (end 149.7 98.85) (width 0.3) (layer "F.Cu") (net 1) (tstamp 0eb8a729-4e3f-408e-8c17-1618f453d9c9))
