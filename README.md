@@ -10,6 +10,8 @@ This repository contains the PCB design for a 4x4 macroboard with a rotary encod
 
 <img width="75%" src="https://user-images.githubusercontent.com/10641355/215907081-7f6ab7aa-15bc-4451-9fbe-dbaddaec6df1.png"></img>
 
+<img width="75%" src="https://user-images.githubusercontent.com/10641355/215912902-7ad30b92-cfb3-4ea1-991d-0182f184923a.png"></img>
+
 ## Schematic
 
 ![image](https://user-images.githubusercontent.com/10641355/211924654-d986394a-e499-4ca9-8c9f-3500dffd60ab.png)
