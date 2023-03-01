@@ -18,6 +18,7 @@ rp2040-hal = { version="0.6", features=["rt"] }
 rp2040-boot2 = "0.2"
 usb-device = "0.2.9"
 usbd-hid = "0.6.1"
+embedded-time = "0.12.1"
 
 # cargo build/run
 [profile.dev]
