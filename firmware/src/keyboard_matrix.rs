@@ -35,8 +35,10 @@ impl KeyboardMatrix {
         }
     }
 
-    pub fn scan(&mut self) -> Result<(), dynpin::Error> {
+    pub fn scan(&mut self) -> Result<bool, dynpin::Error> {
         let mut current_key = 0;
+
+        let mut event_triggered = false;
 
         for col in &mut self.cols {
             col.set_high()?;
@@ -48,17 +50,19 @@ impl KeyboardMatrix {
                     continue;
                 }
 
-                let is_pressed = row.is_high()?;
+                let is_pressed = row.is_high()? as u32;
 
                 // Update key state
-                self.keys[current_key] = (self.keys[current_key] << 1) | (is_pressed as u32);
+                self.keys[current_key] = (self.keys[current_key] << 1) | is_pressed;
 
                 if self.key_state[current_key] && (!self.keys[current_key] & 0b1111) == 0b1111 {
                     self.key_state[current_key] = false;
+                    event_triggered = true;
                 }
 
                 if !self.key_state[current_key] && (self.keys[current_key] & 0b1111) == 0b1111 {
                     self.key_state[current_key] = true;
+                    event_triggered = true;
                 }
 
                 current_key += 1;
@@ -67,6 +71,6 @@ impl KeyboardMatrix {
             col.set_low()?;
         }
 
-        Ok(())
+        Ok(event_triggered)
     }
 }
