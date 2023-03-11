@@ -20,21 +20,33 @@ mod app {
 
     use fugit::ExtU32;
 
-    use hal::{clocks::init_clocks_and_plls, sio::Sio, watchdog::Watchdog};
+    use hal::{clocks::init_clocks_and_plls, pio::PIOExt, sio::Sio, watchdog::Watchdog, Clock};
 
     use rp2040_hal::timer::Alarm0;
 
     use usb_device::class_prelude::UsbBusAllocator;
     use usb_device::prelude::{UsbDevice, UsbDeviceBuilder, UsbVidPid};
-    use usbd_hid::descriptor::KeyboardReport;
-    use usbd_hid::descriptor::SerializedDescriptor;
-    use usbd_hid::hid_class;
+    // use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport, MediaKey};
+    // use usbd_hid::descriptor::SerializedDescriptor;
+    // use usbd_hid::hid_class;
+
+    use usbd_human_interface_device::device::keyboard::{
+        KeyboardLedsReport, NKROBootKeyboardInterface,
+    };
+    use usbd_human_interface_device::page::Keyboard;
+    use usbd_human_interface_device::prelude::*;
+
+    use ws2812_pio::Ws2812Direct;
+    use smart_leds::{SmartLedsWrite, RGB8};
 
     use crate::{board_config, keyboard_matrix, rotary_encoder};
 
     #[shared]
     struct Shared {
-        hid: hid_class::HIDClass<'static, UsbBus>,
+        // hid: hid_class::HIDClass<'static, UsbBus>,
+        hid: UsbHidClass<UsbBus, frunk::HList!(NKROBootKeyboardInterface<'static, UsbBus>)>,
+
+        ws: Ws2812Direct<hal::pac::PIO0, hal::pio::SM0, hal::gpio::bank0::Gpio21>,
     }
 
     #[local]
@@ -45,10 +57,16 @@ mod app {
     }
 
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
-    type MyMono = rp2040_hal::timer::monotonic::Monotonic<Alarm0>;
+    type Monotonic = rp2040_hal::timer::monotonic::Monotonic<Alarm0>;
 
     #[init(local = [usb_bus: Option<usb_device::bus::UsbBusAllocator<hal::usb::UsbBus>> = None])]
     fn init(mut cx: init::Context) -> (Shared, Local, init::Monotonics) {
+        // Soft-reset does not release the hardware spinlocks
+        // Release them now to avoid a deadlock after debug or watchdog reset
+        unsafe {
+            hal::sio::spinlock_reset();
+        }
+
         info!("Hello from duckboard");
 
         let mut watchdog = Watchdog::new(cx.device.WATCHDOG);
@@ -86,6 +104,17 @@ mod app {
             pins.rot1.into_readable_output(),
         );
 
+        let (mut pio, sm0, _, _, _) = cx.device.PIO0.split(&mut cx.device.RESETS);
+        let mut ws = Ws2812Direct::new(
+            pins.led_out.into_mode(),
+            &mut pio,
+            sm0,
+            clocks.peripheral_clock.freq(),
+        );
+
+        // let color : RGB8 = (100, 0, 0).into();
+        // ws.write([color, color, color].iter().copied()).unwrap();
+
         info!("Setting up USB");
 
         // Setup USB device and HID handler
@@ -97,25 +126,15 @@ mod app {
             &mut cx.device.RESETS,
         )));
 
-        let hid = hid_class::HIDClass::new_with_settings(
-            &usb_bus,
-            KeyboardReport::desc(),
-            10,
-            hid_class::HidClassSettings {
-                subclass: hid_class::HidSubClass::NoSubClass,
-                protocol: hid_class::HidProtocol::Keyboard,
-                config: hid_class::ProtocolModeConfig::ForceReport,
-                locale: hid_class::HidCountryCode::NotSupported,
-            },
-        );
+        let mut hid = UsbHidClassBuilder::new()
+            .add_interface(NKROBootKeyboardInterface::default_config())
+            .build(&usb_bus);
 
-        let vid_pid = UsbVidPid(0x16c0, 0x27dd);
+        let vid_pid = UsbVidPid(0x1209, 0x0001);
         let usb_dev = UsbDeviceBuilder::new(&usb_bus, vid_pid)
             .manufacturer("Compubotics")
             .product("Duckboard")
             .serial_number("4242")
-            .max_packet_size_0(64)
-            .device_class(2)
             .build();
 
         info!("Spawning monotonic tasks");
@@ -125,14 +144,20 @@ mod app {
         let alarm = timer.alarm_0().unwrap();
         let mono = hal::timer::monotonic::Monotonic::new(timer, alarm);
 
+        // Enable the USB interrupt
+        // unsafe {
+        //     hal::pac::NVIC::unmask(hal::pac::Interrupt::USBCTRL_IRQ);
+        // };
+
         // Spawn tasks
-        usb_poll::spawn().unwrap();
+        // usb_poll::spawn().unwrap();
         poll_inputs::spawn().unwrap();
+        tick::spawn().unwrap();
 
         info!("Init done! :)");
 
         (
-            Shared { hid },
+            Shared { hid, ws },
             Local {
                 matrix,
                 encoder,
@@ -151,34 +176,68 @@ mod app {
         if let Some(r) = cx.local.encoder.read() {
             debug!("{:?}", r);
 
-            let report = KeyboardReport {
-                modifier: 0,
-                reserved: 0,
-                leds: 0,
-                keycodes: [0x0e, 0, 0, 0, 0, 0],
-            };
+            // let report = MediaKeyboardReport {
+            //     usage_id: MediaKey::VolumeIncrement.into(),
+            // };
 
             cx.shared.hid.lock(|hid| {
-                hid.push_input(&report).unwrap();
+                hid.interface().write_report([Keyboard::A]);
+            });
+
+            // cortex_m::interrupt::free(|_| {
+            //     cx.shared.hid.lock(|hid| {
+            //         info!("{:?}", hid.push_input(&report));
+            //     });
+            // })
+        } else {
+            cx.shared.hid.lock(|hid| {
+                hid.interface().write_report([Keyboard::NoEventIndicated]);
             });
         }
+
+        // cx.shared.hid.lock(|hid| {
+        //     hid.interface().tick().unwrap();
+        // });
 
         poll_inputs::spawn_at(monotonics::now() + 5_u32.millis()).unwrap();
     }
 
-    #[task(local = [usb_dev], shared = [hid])]
-    fn usb_poll(mut cx: usb_poll::Context) {
-        // debug!("poll");
-        cx.shared.hid.lock(|hid| {
-            // Poll USB device
-            cx.local.usb_dev.poll(&mut [hid]);
-
-            // clear HID
-            hid.pull_raw_output(&mut [0; 64]).ok();
+    #[task(shared = [hid])]
+    fn tick(mut cx: tick::Context) {
+        cx.shared.hid.lock(|k| match k.interface().tick() {
+            Err(UsbHidError::WouldBlock) => {}
+            Ok(_) => {}
+            Err(e) => {
+                core::panic!("Failed to process hid tick: {:?}", e)
+            }
         });
 
-        usb_poll::spawn_at(monotonics::now() + 10_u32.millis()).unwrap();
+        tick::spawn_at(monotonics::now() + 1_u32.millis()).unwrap();
     }
+
+    #[task(binds = USBCTRL_IRQ, priority = 3, local = [usb_dev], shared = [hid])]
+    fn usb_rx(mut cx: usb_rx::Context) {
+        cx.shared.hid.lock(|hid| {
+            // Poll USB device
+            if cx.local.usb_dev.poll(&mut [hid]) {
+                hid.interface().read_report().ok();
+            }
+        });
+    }
+
+    // #[task(local = [usb_dev], shared = [hid])]
+    // fn usb_poll(mut cx: usb_poll::Context) {
+    //     // debug!("poll");
+    //     cx.shared.hid.lock(|hid| {
+    //         // Poll USB device
+    //         cx.local.usb_dev.poll(&mut [hid]);
+
+    //         // clear HID
+    //         hid.pull_raw_output(&mut [0; 64]).ok();
+    //     });
+
+    //     usb_poll::spawn_at(monotonics::now() + 10_u32.millis()).unwrap();
+    // }
 
     #[idle]
     fn idle(_: idle::Context) -> ! {

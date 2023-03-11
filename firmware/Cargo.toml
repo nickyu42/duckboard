@@ -11,6 +11,8 @@ cortex-m-rt = "0.7.3"
 cortex-m-rtic = "1.1.4"
 embedded-hal = { version = "0.2.5", features = ["unproven"] }
 fugit = "0.3.6"
+ws2812-pio = "0.6.0"
+smart-leds = "0.3.0"
 
 # HAL
 rp2040-hal = { version="0.8", features=["rt", "rtic-monotonic", "critical-section-impl"] }
@@ -22,8 +24,10 @@ defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 # USB support
-usb-device = "0.2.9"
+usb-device = {version = "0.2.9", features = ["defmt"] }
 usbd-hid = "0.6.1"
+usbd-human-interface-device = "0.3.2"
+frunk = { version = "0.4", default-features = false }
 
 # cargo build/run
 [profile.dev]
