@@ -7,11 +7,13 @@ use panic_probe as _;
 use rtic;
 
 mod board_config;
+mod key_mapping;
 mod keyboard_matrix;
 mod rotary_encoder;
 
 #[rtic::app(device = rp2040_hal::pac, peripherals = true, dispatchers = [TIMER_IRQ_1])]
 mod app {
+    use rotary_encoder::RotationDirection;
     use rp2040_hal::{self as hal, usb::UsbBus};
 
     // Setup defmt with RTT
@@ -26,18 +28,12 @@ mod app {
 
     use usb_device::class_prelude::UsbBusAllocator;
     use usb_device::prelude::{UsbDevice, UsbDeviceBuilder, UsbVidPid};
-    // use usbd_hid::descriptor::{KeyboardReport, MediaKeyboardReport, MediaKey};
-    // use usbd_hid::descriptor::SerializedDescriptor;
-    // use usbd_hid::hid_class;
-
-    use usbd_human_interface_device::device::keyboard::{
-        KeyboardLedsReport, NKROBootKeyboardInterface,
-    };
+    use usbd_human_interface_device::device::keyboard::NKROBootKeyboardInterface;
     use usbd_human_interface_device::page::Keyboard;
     use usbd_human_interface_device::prelude::*;
 
-    use ws2812_pio::Ws2812Direct;
     use smart_leds::{SmartLedsWrite, RGB8};
+    use ws2812_pio::Ws2812Direct;
 
     use crate::{board_config, keyboard_matrix, rotary_encoder};
 
@@ -112,9 +108,6 @@ mod app {
             clocks.peripheral_clock.freq(),
         );
 
-        // let color : RGB8 = (100, 0, 0).into();
-        // ws.write([color, color, color].iter().copied()).unwrap();
-
         info!("Setting up USB");
 
         // Setup USB device and HID handler
@@ -144,13 +137,6 @@ mod app {
         let alarm = timer.alarm_0().unwrap();
         let mono = hal::timer::monotonic::Monotonic::new(timer, alarm);
 
-        // Enable the USB interrupt
-        // unsafe {
-        //     hal::pac::NVIC::unmask(hal::pac::Interrupt::USBCTRL_IRQ);
-        // };
-
-        // Spawn tasks
-        // usb_poll::spawn().unwrap();
         poll_inputs::spawn().unwrap();
         tick::spawn().unwrap();
 
@@ -171,33 +157,41 @@ mod app {
     fn poll_inputs(mut cx: poll_inputs::Context) {
         if cx.local.matrix.scan().unwrap() {
             debug!("{:?}", cx.local.matrix);
+
+            cx.shared.hid.lock(|h| {
+                match h
+                    .interface()
+                    .write_report(cx.local.matrix.get_pressed_keys())
+                {
+                    Err(UsbHidError::WouldBlock) => {}
+                    Err(UsbHidError::Duplicate) => {}
+                    Ok(_) => {}
+                    Err(e) => {
+                        core::panic!("Failed to write keyboard report: {:?}", e)
+                    }
+                };
+            });
         };
 
         if let Some(r) = cx.local.encoder.read() {
             debug!("{:?}", r);
 
-            // let report = MediaKeyboardReport {
-            //     usage_id: MediaKey::VolumeIncrement.into(),
-            // };
+            let report = match r {
+                RotationDirection::Clockwise => Keyboard::VolumeUp,
+                RotationDirection::CounterClockwise => Keyboard::VolumeDown,
+            };
 
             cx.shared.hid.lock(|hid| {
-                hid.interface().write_report([Keyboard::A]);
-            });
-
-            // cortex_m::interrupt::free(|_| {
-            //     cx.shared.hid.lock(|hid| {
-            //         info!("{:?}", hid.push_input(&report));
-            //     });
-            // })
-        } else {
-            cx.shared.hid.lock(|hid| {
-                hid.interface().write_report([Keyboard::NoEventIndicated]);
-            });
+                match hid.interface().write_report([report]) {
+                    Err(UsbHidError::WouldBlock) => {}
+                    Err(UsbHidError::Duplicate) => {}
+                    Ok(_) => {}
+                    Err(e) => {
+                        core::panic!("Failed to write keyboard report: {:?}", e)
+                    }
+                };
+            })
         }
-
-        // cx.shared.hid.lock(|hid| {
-        //     hid.interface().tick().unwrap();
-        // });
 
         poll_inputs::spawn_at(monotonics::now() + 5_u32.millis()).unwrap();
     }
@@ -225,20 +219,6 @@ mod app {
         });
     }
 
-    // #[task(local = [usb_dev], shared = [hid])]
-    // fn usb_poll(mut cx: usb_poll::Context) {
-    //     // debug!("poll");
-    //     cx.shared.hid.lock(|hid| {
-    //         // Poll USB device
-    //         cx.local.usb_dev.poll(&mut [hid]);
-
-    //         // clear HID
-    //         hid.pull_raw_output(&mut [0; 64]).ok();
-    //     });
-
-    //     usb_poll::spawn_at(monotonics::now() + 10_u32.millis()).unwrap();
-    // }
-
     #[idle]
     fn idle(_: idle::Context) -> ! {
         loop {
@@ -246,84 +226,3 @@ mod app {
         }
     }
 }
-
-// #[entry]
-// fn main() -> ! {
-//     info!("Hello from duckboard");
-
-//     let mut pac = pac::Peripherals::take().unwrap();
-//     let core = pac::CorePeripherals::take().unwrap();
-//     let mut watchdog = Watchdog::new(pac.WATCHDOG);
-//     let sio = Sio::new(pac.SIO);
-
-//     let clocks = init_clocks_and_plls(
-//         board_config::XOSC_CRYSTAL_FREQ,
-//         pac.XOSC,
-//         pac.CLOCKS,
-//         pac.PLL_SYS,
-//         pac.PLL_USB,
-//         &mut pac.RESETS,
-//         &mut watchdog,
-//     )
-//     .ok()
-//     .unwrap();
-
-//     let pins = board_config::Pins::new(
-//         pac.IO_BANK0,
-//         pac.PADS_BANK0,
-//         sio.gpio_bank0,
-//         &mut pac.RESETS,
-//     );
-
-//     let mut matrix = KeyboardMatrix::new(
-//         [pins.row0.into(), pins.row1.into(), pins.row2.into()],
-//         [pins.col0.into(), pins.col1.into()],
-//     );
-
-//     let mut encoder = RotaryEncoder::new(
-//         pins.rot0.into_readable_output(),
-//         pins.rot1.into_readable_output(),
-//     );
-
-//     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
-
-//     let usb_bus = UsbBusAllocator::new(UsbBus::new(
-//         pac.USBCTRL_REGS,
-//         pac.USBCTRL_DPRAM,
-//         clocks.usb_clock,
-//         true,
-//         &mut pac.RESETS,
-//     ));
-
-//     let mut hid = HIDClass::new_with_settings(
-//         &usb_bus,
-//         KeyboardReport::desc(),
-//         10,
-//         HidClassSettings {
-//             subclass: HidSubClass::NoSubClass,
-//             protocol: HidProtocol::Keyboard,
-//             config: ProtocolModeConfig::ForceReport,
-//             locale: HidCountryCode::NotSupported,
-//         },
-//     );
-
-//     let vid_pid = UsbVidPid(0x16c0, 0x27dd);
-//     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, vid_pid)
-//         .manufacturer("Compubotics")
-//         .product("Duckboard")
-//         .max_packet_size_0(64)
-//         .device_class(2)
-//         .build();
-
-//     loop {
-//         usb_dev.poll(&mut [&mut hid]);
-
-//         matrix.scan().unwrap();
-
-//         if let Some(r) = encoder.read() {
-//             debug!("{:?}", r);
-//         }
-
-//         hid.pull_raw_output(&mut [0; 64]).ok();
-//     }
-// }

@@ -25,7 +25,6 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 # USB support
 usb-device = {version = "0.2.9", features = ["defmt"] }
-usbd-hid = "0.6.1"
 usbd-human-interface-device = "0.3.2"
 frunk = { version = "0.4", default-features = false }
 

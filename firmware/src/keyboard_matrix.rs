@@ -1,12 +1,18 @@
+use core::iter::zip;
+
 use cortex_m::asm;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::{dynpin, DynPin};
+use usbd_human_interface_device::page::Keyboard;
+
+use crate::key_mapping;
 
 const KEY_COUNT: usize = 5;
 
 pub struct KeyboardMatrix {
     keys: [u32; KEY_COUNT],
     key_state: [bool; KEY_COUNT],
+    prev_key_state: [bool; KEY_COUNT],
     cols: [DynPin; 2],
     rows: [DynPin; 3],
 }
@@ -30,6 +36,7 @@ impl KeyboardMatrix {
         Self {
             keys: [0; KEY_COUNT],
             key_state: [false; KEY_COUNT],
+            prev_key_state: [false; KEY_COUNT],
             cols: cols,
             rows: rows,
         }
@@ -39,6 +46,8 @@ impl KeyboardMatrix {
         let mut current_key = 0;
 
         let mut event_triggered = false;
+
+        self.prev_key_state = self.key_state;
 
         for col in &mut self.cols {
             col.set_high()?;
@@ -73,4 +82,18 @@ impl KeyboardMatrix {
 
         Ok(event_triggered)
     }
+
+    pub fn get_pressed_keys(&self) -> [Keyboard; KEY_COUNT] {
+        let mut pressed = [Keyboard::NoEventIndicated; KEY_COUNT];
+
+        for i in 0..KEY_COUNT {
+            let curr = self.key_state[i];
+            let prev = self.prev_key_state[i];
+            if curr && curr != prev {
+                pressed[i] = key_mapping::key_mapping(i);
+            }
+        }
+
+        pressed
+    } 
 }
