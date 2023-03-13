@@ -13,7 +13,6 @@ mod rotary_encoder;
 
 #[rtic::app(device = rp2040_hal::pac, peripherals = true, dispatchers = [TIMER_IRQ_1])]
 mod app {
-    use rotary_encoder::RotationDirection;
     use rp2040_hal::{self as hal, usb::UsbBus};
 
     // Setup defmt with RTT
@@ -32,6 +31,7 @@ mod app {
     use usbd_human_interface_device::page::Keyboard;
     use usbd_human_interface_device::prelude::*;
 
+    use cichlid::{prelude::*, ColorRGB};
     use smart_leds::{SmartLedsWrite, RGB8};
     use ws2812_pio::Ws2812Direct;
 
@@ -102,7 +102,7 @@ mod app {
         );
 
         let (mut pio, sm0, _, _, _) = cx.device.PIO0.split(&mut cx.device.RESETS);
-        let mut ws = Ws2812Direct::new(
+        let ws = Ws2812Direct::new(
             pins.led_out.into_mode(),
             &mut pio,
             sm0,
@@ -140,6 +140,7 @@ mod app {
 
         poll_inputs::spawn().unwrap();
         tick::spawn().unwrap();
+        led_pattern::spawn().unwrap();
 
         info!("Init done! :)");
 
@@ -203,7 +204,30 @@ mod app {
         tick::spawn_at(monotonics::now() + 1_u32.millis()).unwrap();
     }
 
-    #[task(binds = USBCTRL_IRQ, local = [usb_dev], shared = [hid])]
+    #[task(shared = [ws], local = [start_hue: u8 = 0])]
+    fn led_pattern(mut cx: led_pattern::Context) {
+        let start_hue = *cx.local.start_hue;
+
+        *cx.local.start_hue = if start_hue == 255 { 0 } else { start_hue + 1 };
+
+        let mut colors = [ColorRGB::Black; 6];
+        let hue_delta: u16 = 1 << 12;
+
+        colors.rainbow_fill(*cx.local.start_hue, hue_delta);
+
+        cx.shared.ws.lock(|ws| {
+            ws.write(colors.iter().map(|c| RGB8 {
+                r: c.r,
+                g: c.g,
+                b: c.b,
+            }))
+            .unwrap();
+        });
+
+        led_pattern::spawn_at(monotonics::now() + 10_u32.millis()).unwrap();
+    }
+
+    #[task(binds = USBCTRL_IRQ, priority = 3, local = [usb_dev], shared = [hid])]
     fn usb_rx(mut cx: usb_rx::Context) {
         cx.shared.hid.lock(|hid| {
             // Poll USB device
