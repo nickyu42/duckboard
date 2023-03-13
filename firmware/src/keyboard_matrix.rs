@@ -66,7 +66,6 @@ impl KeyboardMatrix {
 
                 if self.key_state[current_key] && (!self.keys[current_key] & 0b1111) == 0b1111 {
                     self.key_state[current_key] = false;
-                    event_triggered = true;
                 }
 
                 if !self.key_state[current_key] && (self.keys[current_key] & 0b1111) == 0b1111 {

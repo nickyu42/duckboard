@@ -35,6 +35,7 @@ mod app {
     use smart_leds::{SmartLedsWrite, RGB8};
     use ws2812_pio::Ws2812Direct;
 
+    use crate::key_mapping::encoder_mapping;
     use crate::{board_config, keyboard_matrix, rotary_encoder};
 
     #[shared]
@@ -119,7 +120,7 @@ mod app {
             &mut cx.device.RESETS,
         )));
 
-        let mut hid = UsbHidClassBuilder::new()
+        let hid = UsbHidClassBuilder::new()
             .add_interface(NKROBootKeyboardInterface::default_config())
             .build(&usb_bus);
 
@@ -127,7 +128,7 @@ mod app {
         let usb_dev = UsbDeviceBuilder::new(&usb_bus, vid_pid)
             .manufacturer("Compubotics")
             .product("Duckboard")
-            .serial_number("4242")
+            .serial_number("DCK001")
             .build();
 
         info!("Spawning monotonic tasks");
@@ -159,37 +160,30 @@ mod app {
             debug!("{:?}", cx.local.matrix);
 
             cx.shared.hid.lock(|h| {
-                match h
+                while let Err(UsbHidError::WouldBlock) = h
                     .interface()
                     .write_report(cx.local.matrix.get_pressed_keys())
                 {
-                    Err(UsbHidError::WouldBlock) => {}
-                    Err(UsbHidError::Duplicate) => {}
-                    Ok(_) => {}
-                    Err(e) => {
-                        core::panic!("Failed to write keyboard report: {:?}", e)
-                    }
-                };
+                    debug!("Matrix is blocking");
+                }
             });
         };
 
         if let Some(r) = cx.local.encoder.read() {
             debug!("{:?}", r);
 
-            let report = match r {
-                RotationDirection::Clockwise => Keyboard::VolumeUp,
-                RotationDirection::CounterClockwise => Keyboard::VolumeDown,
-            };
+            let report = encoder_mapping(r);
 
             cx.shared.hid.lock(|hid| {
-                match hid.interface().write_report([report]) {
-                    Err(UsbHidError::WouldBlock) => {}
-                    Err(UsbHidError::Duplicate) => {}
-                    Ok(_) => {}
-                    Err(e) => {
-                        core::panic!("Failed to write keyboard report: {:?}", e)
-                    }
-                };
+                while let Err(UsbHidError::WouldBlock) = hid.interface().write_report([report]) {
+                    debug!("Encoder is blocking");
+                }
+            })
+        } else {
+            cx.shared.hid.lock(|hid| {
+                hid.interface()
+                    .write_report([Keyboard::NoEventIndicated])
+                    .ok();
             })
         }
 
@@ -209,7 +203,7 @@ mod app {
         tick::spawn_at(monotonics::now() + 1_u32.millis()).unwrap();
     }
 
-    #[task(binds = USBCTRL_IRQ, priority = 3, local = [usb_dev], shared = [hid])]
+    #[task(binds = USBCTRL_IRQ, local = [usb_dev], shared = [hid])]
     fn usb_rx(mut cx: usb_rx::Context) {
         cx.shared.hid.lock(|hid| {
             // Poll USB device
