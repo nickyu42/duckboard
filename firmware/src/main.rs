@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(let_chains)]
 
 // Handle panicking with probe-run
 use panic_probe as _;
@@ -157,36 +158,32 @@ mod app {
 
     #[task(local = [encoder, matrix], shared = [hid])]
     fn poll_inputs(mut cx: poll_inputs::Context) {
-        if cx.local.matrix.scan().unwrap() {
-            debug!("{:?}", cx.local.matrix);
+        let mut report: [Keyboard; 6] = [Keyboard::NoEventIndicated; 6];
 
-            cx.shared.hid.lock(|h| {
-                while let Err(UsbHidError::WouldBlock) = h
-                    .interface()
-                    .write_report(cx.local.matrix.get_pressed_keys())
-                {
-                    debug!("Matrix is blocking");
-                }
-            });
+        if let Ok(scan_result) = cx.local.matrix.scan() && scan_result.should_report()
+        {
+            if scan_result.event_occurred {
+                debug!("{:?}", cx.local.matrix);
+            }
+
+            let keys = cx.local.matrix.get_pressed_keys();
+
+            for i in 0..5 {
+                report[i] = keys[i];
+            }
         };
 
         if let Some(r) = cx.local.encoder.read() {
             debug!("{:?}", r);
 
-            let report = encoder_mapping(r);
-
-            cx.shared.hid.lock(|hid| {
-                while let Err(UsbHidError::WouldBlock) = hid.interface().write_report([report]) {
-                    debug!("Encoder is blocking");
-                }
-            })
-        } else {
-            cx.shared.hid.lock(|hid| {
-                hid.interface()
-                    .write_report([Keyboard::NoEventIndicated])
-                    .ok();
-            })
+            report[5] = encoder_mapping(r);
         }
+
+        cx.shared.hid.lock(|hid| {
+            while let Err(UsbHidError::WouldBlock) = hid.interface().write_report(report) {
+                debug!("HID write blocking");
+            }
+        });
 
         poll_inputs::spawn_at(monotonics::now() + 5_u32.millis()).unwrap();
     }

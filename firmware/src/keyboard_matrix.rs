@@ -1,5 +1,3 @@
-use core::iter::zip;
-
 use cortex_m::asm;
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use rp2040_hal::gpio::{dynpin, DynPin};
@@ -15,6 +13,18 @@ pub struct KeyboardMatrix {
     prev_key_state: [bool; KEY_COUNT],
     cols: [DynPin; 2],
     rows: [DynPin; 3],
+}
+
+#[derive(PartialEq)]
+pub struct ScanResult {
+    pub key_pressed: bool,
+    pub event_occurred: bool,
+}
+
+impl ScanResult {
+    pub fn should_report(&self) -> bool {
+        self.key_pressed | self.event_occurred
+    }
 }
 
 impl defmt::Format for KeyboardMatrix {
@@ -42,10 +52,10 @@ impl KeyboardMatrix {
         }
     }
 
-    pub fn scan(&mut self) -> Result<bool, dynpin::Error> {
+    pub fn scan(&mut self) -> Result<ScanResult, dynpin::Error> {
         let mut current_key = 0;
 
-        let mut event_triggered = false;
+        let mut scan_result = ScanResult { key_pressed: false, event_occurred: false };
 
         self.prev_key_state = self.key_state;
 
@@ -66,11 +76,16 @@ impl KeyboardMatrix {
 
                 if self.key_state[current_key] && (!self.keys[current_key] & 0b1111) == 0b1111 {
                     self.key_state[current_key] = false;
+                    scan_result.event_occurred = true;
                 }
 
                 if !self.key_state[current_key] && (self.keys[current_key] & 0b1111) == 0b1111 {
                     self.key_state[current_key] = true;
-                    event_triggered = true;
+                    scan_result.event_occurred = true;
+                }
+
+                if self.key_state[current_key] {
+                    scan_result.key_pressed = true;
                 }
 
                 current_key += 1;
@@ -79,7 +94,7 @@ impl KeyboardMatrix {
             col.set_low()?;
         }
 
-        Ok(event_triggered)
+        Ok(scan_result)
     }
 
     pub fn get_pressed_keys(&self) -> [Keyboard; KEY_COUNT] {
